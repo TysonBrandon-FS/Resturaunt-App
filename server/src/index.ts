@@ -2,61 +2,45 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import { VehicleState, ControlInput, EnvironmentUpdate, ClientType } from '../../shared-types/index.js'; // check this import points to the right level depending on if you added a /src directory or not
+import {
+  RestaurantState,
+  Order,
+  OrderItem,
+  OrderStatus,
+  CreateOrderPayload,
+  UpdateOrderStatusPayload,
+  UpdateKitchenStatusPayload,
+  ClientType
+} from '../../shared-types/index.js';
 
 const app = express();
 const server = createServer(app);
 
-// Enable CORS for all domains (development only)
 app.use(cors());
 
 const io = new Server(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
+    origin: '*',
+    methods: ['GET', 'POST']
   }
 });
 
-// This will hold the current state of the vehicle
-// Typically, a database or in-memory store would be used,
-// but for simplicity, we'll use a single object here.
-let vehicleState: VehicleState = {
-  motion: {
-    speed: 0,        // Current speed in MPH
-    direction: 0,    // Heading in degrees (0-359)
-    x: 100,         // Position X coordinate
-    y: 100,         // Position Y coordinate
-    accelerating: false
+// In-memory store for the restaurant state.
+// Real systems would use a database; this is intentionally simple for the demo.
+let restaurantState: RestaurantState = {
+  orders: buildStarterOrders(),
+  kitchenStatus: {
+    isOpen: true,
+    currentRushLevel: 'steady',
+    message: 'Kitchen is open and accepting orders.'
   },
-  controls: {
-    throttle: 0,    // 0-1 (idle to full throttle)
-    brake: 0,       // 0-1 (no brake to full brake)
-    steering: 0,    // -1 to 1 (full left to full right)
-    gear: 'P'       // P, R, N, D, S
-  },
-  systems: {
-    lights: false,
-    leftSignal: false,
-    rightSignal: false,
-    hazards: false
-  },
-  cluster: {
-    rpm: 0,
-    fuel: 85,       // Percentage
-    battery: 75,    // Percentage for electric vehicles
-    warnings: [],   // Array of warning strings
-    trip: 0,        // Trip odometer
-    odometer: 45234 // Total mileage
-  },
-  environment: {
-    speedLimit: 55,
-    nearbyTraffic: [],
-    alerts: []
+  adminSettings: {
+    autoAdvanceOrders: false,
+    showCompletedOrders: true
   },
   timestamp: Date.now()
 };
 
-// Track connected clients by type with proper typing
 interface ConnectedClients {
   [key: string]: number;
 }
@@ -68,7 +52,6 @@ const connectedClients: ConnectedClients = {
   test: 0
 };
 
-// Extend Socket interface to include clientType
 declare module 'socket.io' {
   interface Socket {
     clientType?: ClientType;
@@ -76,101 +59,174 @@ declare module 'socket.io' {
 }
 
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
+  // Send the current restaurant snapshot to the new client immediately.
+  socket.emit('restaurant-update', restaurantState);
 
-  // Send current state to newly connected client
-  socket.emit('vehicle-update', vehicleState);
-
-  // Handle client type registration with type safety
   socket.on('register-client', (clientType: ClientType) => {
-    socket.clientType = clientType;
-    connectedClients[clientType]++;
-    console.log(`${clientType} client connected. Total: ${connectedClients[clientType]}`);
+    if (clientType in connectedClients) {
+      socket.clientType = clientType;
+      connectedClients[clientType]++;
+    }
   });
 
-  // Handle control inputs from mobile app with type safety
-  socket.on('control-input', (data: ControlInput) => {
-    const { type, value } = data;
+  socket.on('order:create', (payload: CreateOrderPayload) => {
+    if (!validateCreateOrderPayload(payload)) return;
+    createOrder(payload);
+    broadcastState();
+  });
 
-    // Update vehicle state based on input with type-safe operations
-    switch(type) {
-      case 'throttle':
-        vehicleState.controls.throttle = Math.max(0, Math.min(1, value as number));
-        break;
-      case 'brake':
-        vehicleState.controls.brake = Math.max(0, Math.min(1, value as number));
-        break;
-      case 'steering':
-        vehicleState.controls.steering = Math.max(-1, Math.min(1, value as number));
-        break;
-      case 'gear':
-        vehicleState.controls.gear = value as 'P' | 'R' | 'N' | 'D' | 'S';
-        break;
-      case 'lights':
-        vehicleState.systems.lights = value as boolean;
-        break;
-      case 'leftSignal':
-        vehicleState.systems.leftSignal = value as boolean;
-        break;
-      case 'rightSignal':
-        vehicleState.systems.rightSignal = value as boolean;
-        break;
-      case 'hazards':
-        vehicleState.systems.hazards = value as boolean;
-        break;
+  socket.on('order:updateStatus', (payload: UpdateOrderStatusPayload) => {
+    if (!payload || typeof payload.orderId !== 'string') return;
+    updateOrderStatus(payload.orderId, payload.status);
+    broadcastState();
+  });
+
+  socket.on('order:complete', (payload: { orderId: string }) => {
+    if (!payload || typeof payload.orderId !== 'string') return;
+    updateOrderStatus(payload.orderId, 'completed');
+    broadcastState();
+  });
+
+  socket.on('admin:resetQueue', () => {
+    resetQueue();
+    broadcastState();
+  });
+
+  socket.on('admin:updateKitchenStatus', (payload: UpdateKitchenStatusPayload) => {
+    if (!payload) return;
+    if (typeof payload.isOpen === 'boolean') {
+      restaurantState.kitchenStatus.isOpen = payload.isOpen;
     }
+    if (payload.currentRushLevel) {
+      restaurantState.kitchenStatus.currentRushLevel = payload.currentRushLevel;
+    }
+    if (typeof payload.message === 'string') {
+      restaurantState.kitchenStatus.message = payload.message;
+    }
+    broadcastState();
+  });
 
-    vehicleState.timestamp = Date.now();
+  socket.on('ping', () => {
+    socket.emit('pong');
+  });
 
-    // Broadcast updated state to all clients
-    io.emit('vehicle-update', vehicleState);
+  socket.on('disconnect', () => {
+    if (socket.clientType && socket.clientType in connectedClients) {
+      connectedClients[socket.clientType] = Math.max(
+        0,
+        connectedClients[socket.clientType] - 1
+      );
+    }
   });
 });
 
-// Simple physics simulation (runs at 20 FPS) with type-safe operations
-setInterval(() => {
-  updateVehiclePhysics();
-  io.emit('vehicle-update', vehicleState);
-}, 50);
+function broadcastState(): void {
+  restaurantState.timestamp = Date.now();
+  io.emit('restaurant-update', restaurantState);
+}
 
-function updateVehiclePhysics(): void {
-  const { controls, motion } = vehicleState;
+function createOrder(payload: CreateOrderPayload): Order {
+  const now = Date.now();
+  const order: Order = {
+    id: `order-${now}-${Math.floor(Math.random() * 1000)}`,
+    tableNumber: payload.tableNumber,
+    items: payload.items.map((item) => ({
+      id: item.id,
+      name: item.name,
+      quantity: Math.max(1, Math.floor(item.quantity || 1)),
+      category: item.category
+    })),
+    status: 'pending',
+    priority: payload.priority,
+    notes: payload.notes,
+    createdAt: now,
+    updatedAt: now
+  };
+  restaurantState.orders.push(order);
+  return order;
+}
 
-  // Simple acceleration/deceleration model
-  if (controls.throttle > 0 && (controls.gear === 'D' || controls.gear === 'R')) {
-    motion.speed += controls.throttle * 0.5; // Acceleration
-    motion.accelerating = true;
-  } else if (controls.brake > 0) {
-    motion.speed -= controls.brake * 1.0; // Braking
-    motion.accelerating = false;
-  } else {
-    motion.speed *= 0.98; // Natural deceleration
-    motion.accelerating = false;
+function updateOrderStatus(orderId: string, status: OrderStatus): void {
+  const order = restaurantState.orders.find((o) => o.id === orderId);
+  if (!order) return;
+  order.status = status;
+  order.updatedAt = Date.now();
+}
+
+function resetQueue(): void {
+  restaurantState.orders = buildStarterOrders();
+}
+
+function validateCreateOrderPayload(payload: CreateOrderPayload): boolean {
+  if (!payload) return false;
+  if (typeof payload.tableNumber !== 'number' || payload.tableNumber <= 0) return false;
+  if (!Array.isArray(payload.items) || payload.items.length === 0) return false;
+  if (payload.priority !== 'normal' && payload.priority !== 'urgent') return false;
+  for (const item of payload.items) {
+    if (!item || typeof item.id !== 'string' || typeof item.name !== 'string') {
+      return false;
+    }
   }
+  return true;
+}
 
-  // Apply speed limits
-  motion.speed = Math.max(-100, Math.min(120, motion.speed));
+function buildStarterOrders(): Order[] {
+  const now = Date.now();
+  const make = (
+    id: string,
+    tableNumber: number,
+    items: OrderItem[],
+    status: OrderStatus,
+    priority: 'normal' | 'urgent',
+    minutesAgo: number
+  ): Order => ({
+    id,
+    tableNumber,
+    items,
+    status,
+    priority,
+    createdAt: now - minutesAgo * 60 * 1000,
+    updatedAt: now - minutesAgo * 60 * 1000
+  });
 
-  // Update RPM based on speed and gear
-  if (controls.gear === 'D') {
-    vehicleState.cluster.rpm = Math.min(6000, motion.speed * 50 + controls.throttle * 1000);
-  } else {
-    vehicleState.cluster.rpm *= 0.95; // RPM decay
-  }
-
-  // Update position based on speed and steering
-  if (motion.speed > 0) {
-    motion.direction += controls.steering * motion.speed * 0.1;
-    motion.direction = motion.direction % 360;
-
-    const radians = (motion.direction * Math.PI) / 180;
-    motion.x += Math.cos(radians) * motion.speed * 0.1;
-    motion.y += Math.sin(radians) * motion.speed * 0.1;
-  }
+  return [
+    make(
+      'order-seed-1',
+      4,
+      [
+        { id: 'm-burger', name: 'Cheeseburger', quantity: 2, category: 'mains' },
+        { id: 'm-fries', name: 'Fries', quantity: 2, category: 'sides' }
+      ],
+      'preparing',
+      'normal',
+      6
+    ),
+    make(
+      'order-seed-2',
+      7,
+      [
+        { id: 'm-pasta', name: 'Pasta Alfredo', quantity: 1, category: 'mains' },
+        { id: 'm-salad', name: 'Caesar Salad', quantity: 1, category: 'sides' }
+      ],
+      'pending',
+      'urgent',
+      2
+    ),
+    make(
+      'order-seed-3',
+      2,
+      [
+        { id: 'm-wings', name: 'Buffalo Wings', quantity: 1, category: 'starters' },
+        { id: 'm-soda', name: 'Soda', quantity: 2, category: 'drinks' }
+      ],
+      'ready',
+      'normal',
+      9
+    )
+  ];
 }
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-  console.log(`🚗 Vehicle Server running on port ${PORT}`);
-  console.log('Waiting for clients to connect...');
+  console.log(`Restaurant Kitchen Server running on port ${PORT}`);
 });

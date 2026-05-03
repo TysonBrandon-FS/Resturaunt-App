@@ -1,31 +1,27 @@
 import React, { useState } from 'react';
 import './App.css';
-import { useTrafficControl } from './hooks/useTrafficControl';
+import { useRestaurantAdmin } from './hooks/useRestaurantAdmin';
 import { useAdminAuth } from './hooks/useAdminAuth';
-import VehicleMap from './components/VehicleMap';
-import ControlPanel from './components/ControlPanel';
+import ActiveOrdersPanel from './components/ActiveOrdersPanel';
+import AdminControls from './components/AdminControls';
 import AdminDashboard from './components/AdminDashboard';
 
 function App() {
   const {
     connected,
-    vehicles,
+    orders,
+    kitchenStatus,
+    orderCounts,
     systemMetrics,
-    speedZones,
-    alerts,
-    updateEnvironment,
-    createAlert,
-    updateSpeedLimit
-  } = useTrafficControl();
+    updateOrderStatus,
+    resetQueue,
+    updateKitchenStatus
+  } = useRestaurantAdmin();
 
   const { isAuthenticated, currentUser, login, logout, error } = useAdminAuth();
 
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
-
-  const handleMapClick = (lng: number, lat: number) => {
-    console.log(`Map clicked at: (${lng.toFixed(4)}, ${lat.toFixed(4)})`);
-  };
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,20 +29,34 @@ function App() {
     setPasswordInput('');
   };
 
+  const handleToggleOpen = () => {
+    updateKitchenStatus({ isOpen: !kitchenStatus.isOpen });
+  };
+
   return (
     <div className="App">
       <header className="app-header">
         <div className="header-left">
-          <h1>🚦 Automotive Traffic Control Center</h1>
+          <h1>🍽️ Restaurant Manager Dashboard</h1>
           <div className="header-info">
-            <span>Real-time Vehicle Monitoring & Management System</span>
+            <span>Real-time Kitchen Coordination System</span>
+          </div>
+        </div>
+
+        <div className="header-status">
+          <div className="kitchen-pill">
+            <span className="pill-dot" data-state={kitchenStatus.isOpen ? 'open' : 'closed'} />
+            <span>{kitchenStatus.isOpen ? 'Kitchen Open' : 'Kitchen Closed'}</span>
+          </div>
+          <div className="message-pill">
+            "{kitchenStatus.message}"
           </div>
         </div>
 
         <div className="header-auth">
           {isAuthenticated ? (
             <div className="auth-logged-in">
-              <span className="auth-user">Admin: {currentUser}</span>
+              <span className="auth-user">Manager: {currentUser}</span>
               <button type="button" className="logout-button" onClick={logout}>
                 Logout
               </button>
@@ -78,27 +88,33 @@ function App() {
 
       <main className="app-main">
         <div className="main-grid">
-          <div className="map-section">
-            <VehicleMap
-              vehicles={vehicles}
-              speedZones={speedZones}
-              alerts={alerts}
-              onMapClick={handleMapClick}
+          <div className="orders-section">
+            <ActiveOrdersPanel
+              orders={orders}
+              onUpdateOrderStatus={updateOrderStatus}
             />
           </div>
 
           <div className="control-section">
             {isAuthenticated ? (
-              <ControlPanel
-                onSpeedLimitChange={updateSpeedLimit}
-                onAlertCreate={createAlert}
-                onEnvironmentUpdate={updateEnvironment}
-                currentSpeedLimit={55}
-                activeAlerts={alerts}
+              <AdminControls
+                kitchenStatus={kitchenStatus}
+                onResetQueue={resetQueue}
+                onToggleOpen={handleToggleOpen}
+                onSetRushLevel={(level) =>
+                  updateKitchenStatus({ currentRushLevel: level })
+                }
+                onUpdateMessage={(msg) => updateKitchenStatus({ message: msg })}
+                onUpdateKitchenStatus={updateKitchenStatus}
+                activeOrderCount={orderCounts.active}
               />
             ) : (
               <div className="control-locked">
-                🔒 Admin login required to use traffic controls.
+                <div className="control-locked-title">Manager Login Required</div>
+                <div className="control-locked-text">
+                  Access admin controls and system settings.
+                </div>
+                <small>Default credentials: manager / 1234</small>
               </div>
             )}
           </div>
@@ -107,6 +123,8 @@ function App() {
         <div className="admin-section">
           <AdminDashboard
             metrics={systemMetrics}
+            orderCounts={orderCounts}
+            kitchenStatus={kitchenStatus}
             connectionStatus={connected}
           />
         </div>
@@ -114,7 +132,7 @@ function App() {
 
       <footer className="app-footer">
         <div className="footer-content">
-          <span>Automotive Interface Suite • Lesson 4: Web Traffic Control Center</span>
+          <span>Restaurant Kitchen Coordination System • Live Demo</span>
           <span>Status: {connected ? '🟢 Connected' : '🔴 Disconnected'}</span>
         </div>
       </footer>

@@ -1,38 +1,12 @@
-import { VehicleState, EnvironmentUpdate } from '../../../shared-types';
-
-export interface VehiclePosition {
-  id: string;
-  coordinates: [number, number];
-  bearing: number;
-  speed: number;
-  lastUpdate: number;
-}
-
-export interface MapConfig {
-  center: [number, number];
-  zoom: number;
-  bearing: number;
-  pitch: number;
-  style: string;
-}
-
-export interface SpeedZone {
-  id: string;
-  center: [number, number];
-  radius: number;
-  speedLimit: number;
-  active: boolean;
-}
-
-export interface TrafficAlert {
-  id: string;
-  type: 'construction' | 'accident' | 'weather' | 'emergency';
-  coordinates: [number, number];
-  message: string;
-  severity: 'low' | 'medium' | 'high';
-  timestamp: number;
-  active: boolean;
-}
+import {
+  RestaurantState,
+  Order,
+  OrderStatus,
+  OrderPriority,
+  RushLevel,
+  KitchenStatus,
+  UpdateKitchenStatusPayload
+} from '../../../shared-types';
 
 export interface SystemMetrics {
   connectedDevices: {
@@ -47,24 +21,36 @@ export interface SystemMetrics {
   lastUpdate: number;
 }
 
-export interface ControlPanelProps {
-  onSpeedLimitChange: (limit: number) => void;
-  onAlertCreate: (alert: Omit<TrafficAlert, 'id' | 'timestamp'>) => void;
-  onEnvironmentUpdate: (update: EnvironmentUpdate) => void;
-  currentSpeedLimit: number;
-  activeAlerts: TrafficAlert[];
+export interface OrderCounts {
+  pending: number;
+  preparing: number;
+  ready: number;
+  completed: number;
+  urgent: number;
+  total: number;
+  active: number;
 }
 
-export interface MapComponentProps {
-  vehicles: VehiclePosition[];
-  speedZones: SpeedZone[];
-  alerts: TrafficAlert[];
-  config: MapConfig;
-  onMapClick: (x: number, y: number) => void;
+export interface AdminControlsProps {
+  kitchenStatus: KitchenStatus;
+  onResetQueue: () => void;
+  onToggleOpen: () => void;
+  onSetRushLevel: (level: RushLevel) => void;
+  onUpdateMessage: (message: string) => void;
+  onUpdateKitchenStatus: (payload: UpdateKitchenStatusPayload) => void;
+  activeOrderCount: number;
+}
+
+export interface ActiveOrdersPanelProps {
+  orders: Order[];
+  onUpdateOrderStatus: (orderId: string, status: OrderStatus) => void;
 }
 
 export interface AdminDashboardProps {
   metrics: SystemMetrics;
-  vehicleStates: Record<string, VehicleState>;
+  orderCounts: OrderCounts;
+  kitchenStatus: KitchenStatus;
   connectionStatus: boolean;
 }
+
+export type { Order, OrderStatus, OrderPriority, RushLevel, KitchenStatus, RestaurantState };

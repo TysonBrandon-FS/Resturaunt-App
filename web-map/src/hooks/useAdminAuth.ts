@@ -1,10 +1,10 @@
 import { useState } from 'react';
 
-const CREDENTIALS_KEY = 'traffic_admin_credentials';
-const SESSION_KEY = 'traffic_admin_session';
+const CREDENTIALS_KEY = 'restaurant_admin_credentials';
+const SESSION_KEY = 'restaurant_admin_session';
 
 const DEFAULT_CREDENTIALS = {
-  username: 'brandon',
+  username: 'manager',
   password: '1234'
 };
 
