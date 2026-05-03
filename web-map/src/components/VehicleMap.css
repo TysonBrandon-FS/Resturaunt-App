@@ -1,0 +1,358 @@
+.vehicle-map-container {
+    border: 2px solid #333;
+    border-radius: 8px;
+    background-color: #1a1a1a;
+    padding: clamp(8px, 2vw, 15px);
+    margin: 0;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .map-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: clamp(8px, 1.5vw, 15px);
+    color: #fff;
+    flex-shrink: 0;
+  }
+  
+  .map-header h3 {
+    margin: 0;
+    color: #00FF88;
+    font-size: clamp(14px, 3vw, 18px);
+    font-weight: bold;
+  }
+  
+  .map-controls {
+    display: flex;
+    align-items: center;
+    gap: clamp(8px, 2vw, 20px);
+    flex-wrap: wrap;
+  }
+  
+  .map-stats {
+    display: flex;
+    gap: clamp(8px, 2vw, 20px);
+    font-size: clamp(10px, 2vw, 12px);
+    color: #888;
+    flex-wrap: wrap;
+  }
+  
+  .locate-vehicles-btn {
+    background: linear-gradient(135deg, #00FF88, #00AA44);
+    color: #000;
+    border: none;
+    padding: clamp(6px, 1.5vw, 8px) clamp(8px, 2vw, 12px);
+    border-radius: 6px;
+    font-size: clamp(9px, 2vw, 11px);
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+  
+  .locate-vehicles-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #00AA44, #008833);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 255, 136, 0.3);
+  }
+  
+  .locate-vehicles-btn:disabled {
+    background: #444;
+    color: #666;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+  
+  .map-wrapper {
+    position: relative;
+    flex: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid #333;
+    min-height: 400px;
+  }
+  
+  .map-container {
+    width: 100%;
+    height: 100%;
+  }
+  
+  .mapboxgl-ctrl-group {
+    background: rgba(26, 26, 26, 0.9) !important;
+    border: 1px solid #333 !important;
+  }
+  
+  .mapboxgl-ctrl button {
+    background-color: #2a2a2a !important;
+    color: #fff !important;
+  }
+  
+  .mapboxgl-ctrl button:hover {
+    background-color: #3a3a3a !important;
+  }
+  
+  .vehicle-marker {
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .vehicle-marker:hover {
+    transform: scale(1.2);
+  }
+  
+  .vehicle-icon {
+    position: relative;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .vehicle-body {
+    width: 16px;
+    height: 8px;
+    border-radius: 8px;
+    border: 2px solid #fff;
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 2;
+  }
+  
+  .vehicle-direction {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-left: 6px solid #fff;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    right: -2px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 3;
+  }
+  
+  .alert-marker {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    transition: all 0.3s ease;
+    animation: pulse-alert 2s ease-in-out infinite;
+  }
+  
+  .alert-marker.severity-low {
+    background-color: rgba(255, 212, 0, 0.9);
+    border: 2px solid #FFD400;
+  }
+  
+  .alert-marker.severity-medium {
+    background-color: rgba(255, 165, 0, 0.9);
+    border: 2px solid #FFA500;
+  }
+  
+  .alert-marker.severity-high {
+    background-color: rgba(255, 68, 68, 0.9);
+    border: 2px solid #FF4444;
+  }
+  
+  .alert-icon {
+    font-size: 16px;
+    filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.8));
+  }
+  
+  @keyframes pulse-alert {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.1);
+      opacity: 0.8;
+    }
+  }
+  
+  .mapboxgl-popup-content {
+    background-color: rgba(26, 26, 26, 0.95) !important;
+    color: #fff !important;
+    border: 1px solid #333 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+  }
+  
+  .vehicle-popup h4 {
+    margin: 0 0 10px 0;
+    color: #00FF88;
+    font-size: 16px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 5px;
+  }
+  
+  .vehicle-popup p {
+    margin: 5px 0;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  
+  .alert-popup h4 {
+    margin: 0 0 10px 0;
+    color: #FFD400;
+    font-size: 16px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 5px;
+  }
+  
+  .alert-popup.severity-low h4 {
+    color: #FFD400;
+  }
+  
+  .alert-popup.severity-medium h4 {
+    color: #FFA500;
+  }
+  
+  .alert-popup.severity-high h4 {
+    color: #FF4444;
+  }
+  
+  .alert-popup p {
+    margin: 5px 0;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  
+  .mapboxgl-popup-close-button {
+    color: #888 !important;
+    font-size: 18px !important;
+  }
+  
+  .mapboxgl-popup-close-button:hover {
+    color: #fff !important;
+  }
+  
+  .map-overlays {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1000;
+    pointer-events: none;
+  }
+  
+  .map-legend {
+    background: rgba(26, 26, 26, 0.9);
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 12px;
+    color: #fff;
+    font-size: 11px;
+    pointer-events: auto;
+    max-width: 200px;
+  }
+  
+  .map-legend h4 {
+    margin: 0 0 8px 0;
+    color: #00FF88;
+    font-size: 12px;
+    font-weight: bold;
+    border-bottom: 1px solid #333;
+    padding-bottom: 4px;
+  }
+  
+  .map-legend hr {
+    border: none;
+    height: 1px;
+    background-color: #333;
+    margin: 10px 0;
+  }
+  
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    color: #ddd;
+  }
+  
+  .legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    border: 1px solid #666;
+  }
+  
+  .legend-color.speed-normal {
+    background-color: #00FF88;
+  }
+  
+  .legend-color.speed-moderate {
+    background-color: #FFD400;
+  }
+  
+  .legend-color.speed-high {
+    background-color: #FF4444;
+  }
+  
+  @media (max-width: 700px) {
+    .map-header {
+      flex-direction: column;
+      align-items: stretch;
+      gap: clamp(6px, 1vw, 10px);
+    }
+  
+    .map-controls {
+      justify-content: space-between;
+    }
+  
+    .map-stats {
+      justify-content: space-around;
+      order: 1;
+    }
+  
+    .locate-vehicles-btn {
+      order: 2;
+      align-self: center;
+    }
+  }
+  
+  @media (max-width: 500px) {
+    .map-overlays {
+      position: relative;
+      top: auto;
+      left: auto;
+      margin-top: 10px;
+    }
+  
+    .map-legend {
+      font-size: clamp(9px, 2vw, 11px);
+      padding: clamp(8px, 2vw, 12px);
+    }
+  
+    .map-stats {
+      font-size: clamp(9px, 2.5vw, 11px);
+    }
+  }
+  
+  .mapboxgl-map {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+  
+  .map-container::before {
+    content: 'Loading map...';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #888;
+    font-size: 14px;
+    z-index: -1;
+  }

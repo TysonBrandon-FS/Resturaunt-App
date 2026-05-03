@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vehicle State Test</title>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Vehicle State Monitor</h1>
+    <div id="status">Connecting...</div>
+    <div id="data"></div>
+    
+    <script>
+        const socket = io('http://localhost:3001');
+        
+        socket.on('connect', () => {
+            document.getElementById('status').textContent = 'Connected';
+            socket.emit('register-client', 'test');
+        });
+        
+        socket.on('vehicle-update', (data) => {
+            document.getElementById('data').innerHTML = 
+                '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+        });
+        
+        socket.on('disconnect', () => {
+            document.getElementById('status').textContent = 'Disconnected';
+        });
+    </script>
+</body>
+</html>
